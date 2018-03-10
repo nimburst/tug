@@ -36,7 +36,7 @@ public @interface UniqueNames {
         @Override
         public boolean isValid(TugManifest manifest, ConstraintValidatorContext context) {
 
-            if (manifest == null && manifest.getDeployments() == null) {
+            if (manifest != null && manifest.getDeployments() != null) {
                 Set<String> names = new HashSet<>();
 
                 for (String name : names) {

@@ -122,17 +122,6 @@ public class TugCli
         return "";
     }
 
-
-    private static void writeOutput(Object json) {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        try {
-            System.out.println(mapper.writeValueAsString(json));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Unable to write JSON output", e);
-        }
-    }
-
     public static void main(String[] args) {
 
         Options options = buildOptions();
