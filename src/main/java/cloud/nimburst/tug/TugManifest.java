@@ -1,11 +1,8 @@
 package cloud.nimburst.tug;
 
-import lombok.Data;
-
 import javax.validation.Valid;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -15,26 +12,58 @@ import java.util.Set;
 //TODO validate names are unique
 
 @UniqueNames
-@Data
-public class TugManifest
-{
-    @NotBlank
-    private String namespace = "default";
+public class TugManifest {
     @Valid
     private List<Deployment> deployments = new LinkedList<>();
 
+    public List<Deployment> getDeployments() {
+        return deployments;
+    }
+
+    public void setDeployments(List<Deployment> deployments) {
+        this.deployments = deployments;
+    }
+
     //TODO validate file exists
-    @Data
-    public static class Deployment
-    {
+    public static class Deployment {
         @NotBlank
         private String name;
         @Min(1)
         private int maxWaitSeconds = 300;
-        @NotNull
-        private DeploymentKind kind;
         @NotBlank
         private String location;
         private Set<String> dependencies = new HashSet<>();
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public int getMaxWaitSeconds() {
+            return maxWaitSeconds;
+        }
+
+        public void setMaxWaitSeconds(int maxWaitSeconds) {
+            this.maxWaitSeconds = maxWaitSeconds;
+        }
+
+        public String getLocation() {
+            return location;
+        }
+
+        public void setLocation(String location) {
+            this.location = location;
+        }
+
+        public Set<String> getDependencies() {
+            return dependencies;
+        }
+
+        public void setDependencies(Set<String> dependencies) {
+            this.dependencies = dependencies;
+        }
     }
 }

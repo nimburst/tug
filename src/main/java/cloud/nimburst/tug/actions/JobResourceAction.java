@@ -1,21 +1,23 @@
 package cloud.nimburst.tug.actions;
 
+import cloud.nimburst.tug.ResourceAction;
 import cloud.nimburst.tug.ResourceActionException;
 import cloud.nimburst.tug.TugManifest;
+import cloud.nimburst.tug.YamlParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonSyntaxException;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.BatchV1Api;
 import io.kubernetes.client.models.V1DeleteOptions;
 import io.kubernetes.client.models.V1Job;
 import io.kubernetes.client.models.V1JobList;
-import cloud.nimburst.tug.ResourceAction;
-import cloud.nimburst.tug.YamlParser;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * {@link ResourceAction} for managing a Job resource
+ */
 public class JobResourceAction implements ResourceAction {
 
     private final String namespace;
@@ -23,14 +25,16 @@ public class JobResourceAction implements ResourceAction {
     private final BatchV1Api api = new BatchV1Api();
     private final int maxWaitSeconds;
 
-    public JobResourceAction(String namespace, Path configRoot, TugManifest.Deployment deployment) {
-
-        this.namespace = namespace;
-        Path location = Paths.get(deployment.getLocation());
-        if (!location.isAbsolute()) {
-            location = configRoot.resolve(location);
-        }
-        jobFile = YamlParser.parseYaml(location, V1Job.class, false);
+    /**
+     * Instantiates a new JobResourceAction.
+     *
+     * @param resource   the content of the yaml resource configuration
+     * @param deployment the deployment configuration from the manifest
+     */
+    public JobResourceAction(JsonNode resource, TugManifest.Deployment deployment) {
+        jobFile = YamlParser.transformYaml(resource, V1Job.class, false);
+        String namespace = jobFile.getMetadata().getNamespace();
+        this.namespace = namespace == null ? "default" : namespace;
         this.maxWaitSeconds = deployment.getMaxWaitSeconds();
     }
 

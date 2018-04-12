@@ -1,7 +1,10 @@
 package cloud.nimburst.tug.actions;
 
+import cloud.nimburst.tug.ResourceAction;
 import cloud.nimburst.tug.ResourceActionException;
 import cloud.nimburst.tug.TugManifest;
+import cloud.nimburst.tug.YamlParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonSyntaxException;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
@@ -9,15 +12,14 @@ import io.kubernetes.client.models.V1ContainerStatus;
 import io.kubernetes.client.models.V1DeleteOptions;
 import io.kubernetes.client.models.V1Pod;
 import io.kubernetes.client.models.V1PodList;
-import cloud.nimburst.tug.ResourceAction;
-import cloud.nimburst.tug.YamlParser;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+/**
+ * {@link ResourceAction} for managing a Pod resource
+ */
 public class PodResourceAction implements ResourceAction {
 
     private final String namespace;
@@ -25,14 +27,16 @@ public class PodResourceAction implements ResourceAction {
     private final CoreV1Api api = new CoreV1Api();
     private final int maxWaitSeconds;
 
-    public PodResourceAction(String namespace, Path configRoot, TugManifest.Deployment deployment) {
-
-        this.namespace = namespace;
-        Path location = Paths.get(deployment.getLocation());
-        if (!location.isAbsolute()) {
-            location = configRoot.resolve(location);
-        }
-        podFile = YamlParser.parseYaml(location, V1Pod.class, false);
+    /**
+     * Instantiates a new PodResourceAction.
+     *
+     * @param resource   the content of the yaml resource configuration
+     * @param deployment the deployment configuration from the manifest
+     */
+    public PodResourceAction(JsonNode resource, TugManifest.Deployment deployment) {
+        podFile = YamlParser.transformYaml(resource, V1Pod.class, false);
+        String namespace = podFile.getMetadata().getNamespace();
+        this.namespace = namespace == null ? "default" : namespace;
         this.maxWaitSeconds = deployment.getMaxWaitSeconds();
     }
 

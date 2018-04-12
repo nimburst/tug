@@ -4,16 +4,18 @@ import cloud.nimburst.tug.ResourceAction;
 import cloud.nimburst.tug.ResourceActionException;
 import cloud.nimburst.tug.TugManifest;
 import cloud.nimburst.tug.YamlParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1Service;
 import io.kubernetes.client.models.V1ServiceList;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * {@link ResourceAction} for managing a Service resource
+ */
 public class ServiceResourceAction implements ResourceAction {
 
     private final String namespace;
@@ -21,14 +23,16 @@ public class ServiceResourceAction implements ResourceAction {
     private final CoreV1Api api = new CoreV1Api();
     private final int maxWaitSeconds;
 
-    public ServiceResourceAction(String namespace, Path configRoot, TugManifest.Deployment deployment) {
-
-        this.namespace = namespace;
-        Path location = Paths.get(deployment.getLocation());
-        if (!location.isAbsolute()) {
-            location = configRoot.resolve(location);
-        }
-        serviceFile = YamlParser.parseYaml(location, V1Service.class, false);
+    /**
+     * Instantiates a new ServiceResourceAction.
+     *
+     * @param resource   the content of the yaml resource configuration
+     * @param deployment the deployment configuration from the manifest
+     */
+    public ServiceResourceAction(JsonNode resource, TugManifest.Deployment deployment) {
+        serviceFile = YamlParser.transformYaml(resource, V1Service.class, false);
+        String namespace = serviceFile.getMetadata().getNamespace();
+        this.namespace = namespace == null ? "default" : namespace;
         this.maxWaitSeconds = deployment.getMaxWaitSeconds();
     }
 

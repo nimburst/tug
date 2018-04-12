@@ -14,6 +14,9 @@ import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+/**
+ * Unique name validator for the manifest.
+ */
 @Target({TYPE, ANNOTATION_TYPE})
 @Retention(RUNTIME)
 @Constraint(validatedBy = {UniqueNames.UniqueNamesValidator.class})
@@ -21,9 +24,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 public @interface UniqueNames {
 
     String message() default "Deployment names must be unique";
-
     Class<?>[] groups() default {};
-
     Class<? extends Payload>[] payload() default {};
 
     static class UniqueNamesValidator implements ConstraintValidator<UniqueNames, TugManifest> {

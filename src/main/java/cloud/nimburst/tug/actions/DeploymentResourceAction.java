@@ -4,6 +4,7 @@ import cloud.nimburst.tug.ResourceAction;
 import cloud.nimburst.tug.ResourceActionException;
 import cloud.nimburst.tug.TugManifest;
 import cloud.nimburst.tug.YamlParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonSyntaxException;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.AppsV1beta2Api;
@@ -11,11 +12,12 @@ import io.kubernetes.client.models.V1DeleteOptions;
 import io.kubernetes.client.models.V1beta2Deployment;
 import io.kubernetes.client.models.V1beta2DeploymentList;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * {@link ResourceAction} for managing a Deployment resource
+ */
 public class DeploymentResourceAction implements ResourceAction {
 
     private final String namespace;
@@ -23,14 +25,16 @@ public class DeploymentResourceAction implements ResourceAction {
     private final AppsV1beta2Api api = new AppsV1beta2Api();
     private final int maxWaitSeconds;
 
-    public DeploymentResourceAction(String namespace, Path configRoot, TugManifest.Deployment deployment) {
-
-        this.namespace = namespace;
-        Path location = Paths.get(deployment.getLocation());
-        if (!location.isAbsolute()) {
-            location = configRoot.resolve(location);
-        }
-        deploymentFile = YamlParser.parseYaml(location, V1beta2Deployment.class, false);
+    /**
+     * Instantiates a new DeploymentResourceAction.
+     *
+     * @param resource   the content of the yaml resource configuration
+     * @param deployment the deployment configuration from the manifest
+     */
+    public DeploymentResourceAction(JsonNode resource, TugManifest.Deployment deployment) {
+        deploymentFile = YamlParser.transformYaml(resource, V1beta2Deployment.class, false);
+        String namespace = deploymentFile.getMetadata().getNamespace();
+        this.namespace = namespace == null ? "default" : namespace;
         this.maxWaitSeconds = deployment.getMaxWaitSeconds();
     }
 
