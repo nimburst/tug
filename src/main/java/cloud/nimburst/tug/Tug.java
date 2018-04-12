@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * Parses the manifest and command line parameters and executes the resource actions.
+ */
 public class Tug {
 
     private final TugAction action;
@@ -16,6 +19,14 @@ public class Tug {
     private final List<String> resources;
     private final int parallelism;
 
+    /**
+     * Instantiates a new Tug.
+     *
+     * @param parallelism max number of concurrent actions
+     * @param action       the action to perform on the cluster
+     * @param manifestPath the path to the manifest file
+     * @param resources   the resources specified on the command line or an empty list for all defined in the manifest
+     */
     public Tug(int parallelism, TugAction action, Path manifestPath, List<String> resources) {
 
         this.parallelism = parallelism;
@@ -32,6 +43,9 @@ public class Tug {
         }
     }
 
+    /**
+     * Execute the resource actions
+     */
     public void execute() {
 
         switch (action) {
@@ -59,8 +73,7 @@ public class Tug {
         }
 
         try {
-            ResourceActionGraphExecutor
-                    .build(dir, parallelism, configRoot, manifest, resources)
+            new ResourceActionGraphExecutor(dir, parallelism, configRoot, manifest, resources)
                     .execute();
             System.out.println("\uD83D\uDEA2 Toot Toot! \uD83D\uDEA2");
         } catch (Exception e) {

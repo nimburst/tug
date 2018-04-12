@@ -1,13 +1,18 @@
 package cloud.nimburst.tug;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
 
+/**
+ * The type command line interface for Tug.
+ */
 public class TugCli
 {
 
@@ -122,6 +127,11 @@ public class TugCli
         return "";
     }
 
+    /**
+     * The entry point of application.
+     *
+     * @param args the input arguments
+     */
     public static void main(String[] args) {
 
         Options options = buildOptions();

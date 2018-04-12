@@ -1,16 +1,20 @@
 package cloud.nimburst.tug;
 
 import cloud.nimburst.tug.TugManifest.Deployment;
+import cloud.nimburst.tug.actions.ClusterRoleBindingAction;
 import cloud.nimburst.tug.actions.ConfigMapResourceAction;
 import cloud.nimburst.tug.actions.DeploymentResourceAction;
+import cloud.nimburst.tug.actions.IngressResourceAction;
 import cloud.nimburst.tug.actions.JobResourceAction;
+import cloud.nimburst.tug.actions.NamespaceResourceAction;
 import cloud.nimburst.tug.actions.PodResourceAction;
 import cloud.nimburst.tug.actions.ServiceResourceAction;
-import lombok.Data;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DirectedAcyclicGraph;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,29 +27,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Executes {@link ResourceAction}s.
+ */
 public class ResourceActionGraphExecutor {
-
-    public static ResourceActionGraphExecutor build(ResourceActionDirection direction, int parallelism, Path configRoot, TugManifest manifest, List<String> resources) {
-
-        return new ResourceActionGraphExecutor(direction, parallelism, configRoot, manifest, resources);
-    }
 
     private final DirectedAcyclicGraph<DeploymentAction, DefaultEdge> dag = new DirectedAcyclicGraph<>(DefaultEdge.class);
     private final Set<DeploymentAction> processing = new HashSet<>();
-    final Set<DeploymentAction> initial;
-    final Map<String, DeploymentAction> deploymentActions;
-    final List<CompletableFuture<?>> futures;
+    private final Set<DeploymentAction> initial;
+    private final Map<String, DeploymentAction> deploymentActions;
+    private final List<CompletableFuture<?>> futures;
     private final ExecutorService executor;
     private final Path configRoot;
-    private final String namespace;
     private final ResourceActionDirection dir;
     private Exception exception;
     private CompletableFuture<?> all;
 
-    private ResourceActionGraphExecutor(ResourceActionDirection direction, int parallelism, Path configRoot, TugManifest manifest, List<String> resources) {
+    /**
+     * Instantiates a new ResourceActionGraphExecutors.
+     *
+     * @param direction   create or delete
+     * @param parallelism max number of concurrent actions
+     * @param configRoot  the directory containing the manifest
+     * @param manifest    the manifest
+     * @param resources   the resources specified on the command line or an empty list for all defined in the manifest
+     */
+    public ResourceActionGraphExecutor(ResourceActionDirection direction, int parallelism, Path configRoot, TugManifest manifest, List<String> resources) {
 
         this.dir = direction;
-        this.namespace = manifest.getNamespace();
         this.configRoot = configRoot;
         executor = Executors.newWorkStealingPool(parallelism);
         deploymentActions = manifest.getDeployments().stream()
@@ -86,30 +95,55 @@ public class ResourceActionGraphExecutor {
 
     private DeploymentAction deploymentToAction(Deployment deployment) {
 
+        Path location = Paths.get(deployment.getLocation());
+        if (!location.isAbsolute()) {
+            location = configRoot.resolve(location);
+        }
+        JsonNode resource = YamlParser.parseYaml(location);
+        JsonNode kindNode = resource.get("kind");
+        if(kindNode == null || !kindNode.isTextual()) {
+            throw new RuntimeException("No kind defined in " + location);
+        }
+
+        String kind = kindNode.textValue();
+
         ResourceAction resourceAction;
-        switch (deployment.getKind()) {
-            case Pod:
-                resourceAction = new PodResourceAction(namespace, configRoot, deployment);
+        switch (kind) {
+            case "Pod":
+                resourceAction = new PodResourceAction(resource, deployment);
                 break;
-            case Service:
-                resourceAction = new ServiceResourceAction(namespace, configRoot, deployment);
+            case "Service":
+                resourceAction = new ServiceResourceAction(resource, deployment);
                 break;
-            case ConfigMap:
-                resourceAction = new ConfigMapResourceAction(namespace, configRoot, deployment);
+            case "ConfigMap":
+                resourceAction = new ConfigMapResourceAction(resource, deployment);
                 break;
-            case Job:
-                resourceAction = new JobResourceAction(namespace, configRoot, deployment);
+            case "Job":
+                resourceAction = new JobResourceAction(resource, deployment);
                 break;
-            case Deployment:
-                resourceAction = new DeploymentResourceAction(namespace, configRoot, deployment);
+            case "Deployment":
+                resourceAction = new DeploymentResourceAction(resource, deployment);
+                break;
+            case "Ingress":
+                resourceAction = new IngressResourceAction(resource, deployment);
+                break;
+            case "Namespace":
+                resourceAction = new NamespaceResourceAction(resource, deployment);
+                break;
+            case "ClusterRoleBinding":
+                resourceAction = new ClusterRoleBindingAction(resource, deployment);
                 break;
             default:
-                throw new RuntimeException("Unsupported deployment kind: " + deployment.getKind());
+                throw new RuntimeException("Unsupported deployment kind: " + kind);
         }
         return new DeploymentAction(deployment, resourceAction);
     }
 
-    public void execute() throws Exception {
+    /**
+     * Executes the resource actions.
+     *
+     */
+    public void execute() {
 
         try {
             initial.forEach(v -> executor.submit(() -> this.doNext(v)));
@@ -158,18 +192,29 @@ public class ResourceActionGraphExecutor {
         return null;
     }
 
-    @Data
     private static class DeploymentAction {
 
         private final Deployment deployment;
         private final ResourceAction resourceAction;
         private final CompletableFuture<DeploymentAction> future;
 
-        public DeploymentAction(Deployment deployment, ResourceAction resourceAction) {
+        private DeploymentAction(Deployment deployment, ResourceAction resourceAction) {
 
             this.deployment = deployment;
             this.resourceAction = resourceAction;
             this.future = new CompletableFuture<>();
+        }
+
+        private Deployment getDeployment() {
+            return deployment;
+        }
+
+        private ResourceAction getResourceAction() {
+            return resourceAction;
+        }
+
+        private CompletableFuture<DeploymentAction> getFuture() {
+            return future;
         }
 
         @Override
